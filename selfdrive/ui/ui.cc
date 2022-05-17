@@ -17,6 +17,9 @@
 #define BACKLIGHT_TS 10.00
 #define BACKLIGHT_OFFROAD 50
 
+#define MAX(A,B) A > B ? A : B
+#define MIN(A,B) A < B ? A : B
+
 std::map<std::string, int> LS_TO_IDX = {{"off", 0}, {"audible", 1}, {"silent", 2}};
 std::map<std::string, int> DF_TO_IDX = {{"traffic", 0}, {"stock", 1}, {"roadtrip", 2}, {"auto", 3}};
 
@@ -129,6 +132,65 @@ static void update_sockets(UIState *s) {
 static void update_state(UIState *s) {
   SubMaster &sm = *(s->sm);
   UIScene &scene = s->scene;
+  
+   // fade screen brightness
+  // update screen dim
+  const float t = seconds_since_boot();
+  if (scene.started){
+    // position screen dim touch rect, which gets bigger if the screen is dimmed
+    const Rect maxspeed_rect = {bdr_s * 2, int(bdr_s * 1.5), 184, 202};
+    const int radius = 96;
+    const int center_x = maxspeed_rect.centerX();
+    const int center_y = s->fb_h - footer_h / 2;
+    scene.screen_dim_touch_rect = {
+      center_x - (1+scene.screen_dim_mode_max-scene.screen_dim_mode) * radius, 
+      center_y - (1+scene.screen_dim_mode_max-scene.screen_dim_mode) * radius, 
+      (2*(1+scene.screen_dim_mode_max-scene.screen_dim_mode)) * radius, 
+      (2*(1+scene.screen_dim_mode_max-scene.screen_dim_mode)) * radius
+    };
+
+    // undim screen smoothly to the next level for warnings
+    if (s->status == STATUS_WARNING){
+      scene.screen_dim_mode_cur = scene.screen_dim_mode + 1;
+      if (scene.screen_dim_mode_cur > scene.screen_dim_mode_max){
+        scene.screen_dim_mode_cur = scene.screen_dim_mode_max;
+      }
+    } // undim immediately to stock brightness for critical alerts
+    else if (s->status == STATUS_ALERT){
+      scene.screen_dim_mode_cur = scene.screen_dim_mode_max;
+      scene.screen_dim_fade = scene.screen_dim_modes_v[scene.screen_dim_mode_cur];
+    }
+    else{
+      scene.screen_dim_mode_cur = scene.screen_dim_mode;
+    }
+
+    // when dim mode is changed, compute new fade step based on current and target value
+    // it always takes the same amount of time to go achieve the brightness difference
+    if (scene.screen_dim_mode_cur != scene.screen_dim_mode_last){
+      scene.screen_dim_fade_step = scene.screen_dim_modes_v[scene.screen_dim_mode_cur] - scene.screen_dim_modes_v[scene.screen_dim_mode_last];
+      scene.screen_dim_fade_step /= (scene.screen_dim_fade_step > 0 ? scene.screen_dim_fade_dur_up : scene.screen_dim_fade_dur_down);
+    }
+
+    // step the brightness up or down as necessary to achieve the target level,
+    // setting to the target level exactly once it's reached/passed
+    if (scene.screen_dim_fade > scene.screen_dim_modes_v[scene.screen_dim_mode_cur]){
+      scene.screen_dim_fade += scene.screen_dim_fade_step * (t - scene.screen_dim_fade_last_t);
+      if (scene.screen_dim_fade < scene.screen_dim_modes_v[scene.screen_dim_mode_cur])
+        scene.screen_dim_fade = scene.screen_dim_modes_v[scene.screen_dim_mode_cur];
+    }
+    else if (scene.screen_dim_fade < scene.screen_dim_modes_v[scene.screen_dim_mode_cur]){
+      scene.screen_dim_fade += scene.screen_dim_fade_step * (t - scene.screen_dim_fade_last_t);
+      if (scene.screen_dim_fade > scene.screen_dim_modes_v[scene.screen_dim_mode_cur])
+        scene.screen_dim_fade = scene.screen_dim_modes_v[scene.screen_dim_mode_cur];
+    }
+  }
+  else{ // revert to stock brightness when offroad
+    scene.screen_dim_mode_cur = scene.screen_dim_mode_max;
+    scene.screen_dim_fade = scene.screen_dim_modes_v[scene.screen_dim_mode_cur];
+    scene.screen_dim_touch_rect = {1,1,1,1};
+  }
+  scene.screen_dim_mode_last = scene.screen_dim_mode_cur;
+  scene.screen_dim_fade_last_t = t;
 
   if (sm.updated("modelV2")) {
     update_model(s, sm["modelV2"].getModelV2());
@@ -321,7 +383,10 @@ void Device::updateBrightness(const UIState &s) {
   if (!awake) {
     brightness = 0;
   }
-
+  else if (s.scene.started && s.scene.screen_dim_fade < 1.0){
+    brightness = std::clamp(int(float(brightness) * s.scene.screen_dim_fade),1,100);
+  }
+  
   if (brightness != last_brightness) {
     if (!brightness_future.isRunning()) {
       brightness_future = QtConcurrent::run(Hardware::set_brightness, brightness);
