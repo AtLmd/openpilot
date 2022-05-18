@@ -130,14 +130,7 @@ class CarInterface(CarInterfaceBase):
         if fw.ecu == "eps" and (fw.fwVersion.startswith(b'\x02') or fw.fwVersion in [b'8965B42181\x00\x00\x00\x00\x00\x00']):
           set_lat_tune(ret.lateralTuning, LatTunes.TORQUE, MAX_TORQUE=2.5, FRICTION=0.06)
           break
-
-    elif candidate in (CAR.COROLLA_TSS2, CAR.COROLLAH_TSS2):
-      stop_and_go = True
-      ret.wheelbase = 2.67  # Average between 2.70 for sedan and 2.64 for hatchback
-      ret.steerRatio = 13.9
-      tire_stiffness_factor = 0.444  # not optimized yet
-      ret.mass = 3060. * CV.LB_TO_KG + STD_CARGO_KG
-      
+       
     elif candidate in (CAR.COROLLA_TSS2, CAR.COROLLAH_TSS2):
       stop_and_go = True
       ret.wheelbase = 2.67  # Average between 2.70 for sedan and 2.64 for hatchback
@@ -153,8 +146,7 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.indi.timeConstantV = [1, 3, 4.5]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [18, 22, 26]
       ret.lateralTuning.indi.actuatorEffectivenessV = [9, 12, 15]
-      ret.steerActuatorDelay = 0.42
-      ret.steerRateCost = 0.5
+      ret.steerActuatorDelay = 0.42 - 0.2
 
     elif candidate in (CAR.LEXUS_ES_TSS2, CAR.LEXUS_ESH_TSS2, CAR.LEXUS_ESH):
       stop_and_go = True
