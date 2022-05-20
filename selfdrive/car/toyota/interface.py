@@ -170,6 +170,7 @@ class CarInterface(CarInterfaceBase):
         ret.lateralTuning.indi.actuatorEffectivenessV = [9, 12, 15]
         ret.steerActuatorDelay = 0.42 - 0.2
       else:
+        ret.lateralTuning.init('pid')
         ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[.028], [.0012]] #birdman6450#7399's Corolla 2020 PIF Tune 
         ret.lateralTuning.pid.kdV = [0.]
         ret.lateralTuning.pid.kf = 0.000153263811757641
