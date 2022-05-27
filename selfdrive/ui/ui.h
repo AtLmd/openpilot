@@ -116,7 +116,7 @@ typedef struct UIScene {
   int screen_dim_mode = screen_dim_mode_max;
   int screen_dim_mode_last = screen_dim_mode_max;
   float screen_dim_fade = -1., screen_dim_fade_last_t = 0., screen_dim_fade_step = 1;
-  float screen_dim_fade_dur_up = 0.5, screen_dim_fade_dur_down = 2.;
+  float screen_dim_fade_dur_up = 0.3, screen_dim_fade_dur_down = 0.3;
   Rect screen_dim_touch_rect;
 
   // modelV2
