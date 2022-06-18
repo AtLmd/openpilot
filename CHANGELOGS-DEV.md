@@ -1,6 +1,6 @@
 AtL fork
 ========================
-* COROLLA TSS2 INDI tune from Birdman
+* AtL's INDI Corolla TSS2 Tune v2.0
 * NEOS 20
 
 dragonpilot 0.8.13-2
